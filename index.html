@@ -5,13 +5,12 @@
       (async () => {
         const response = await fetch('https://api.github.com/repos/qqaatw/aws-crt-python-musllinux/releases');
         const data = await response.json();
-        let htmlString = '<ul>';
+        let htmlString = '';
         for (let file of data) {
             for (let asset of file.assets){
-                htmlString += `<li><a href="${asset.browser_download_url}">${asset.name}</a></li>`;
+                htmlString += `<a href="${asset.browser_download_url}">${asset.name}</a><br>`;
             }
         }
-        htmlString += '</ul>';
         document.getElementsByTagName('body')[0].innerHTML = htmlString;
       })()
     </script>
