@@ -1,0 +1,72 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron:  '0 0 * * 0'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - docker-image: quay.io/pypa/musllinux_1_1_i686
+            platform: musllinux_1_1_i686
+            qemu: false
+            pre-cmd: linux32
+          - docker-image: quay.io/pypa/musllinux_1_1_x86_64
+            platform: musllinux_1_1_x86_64
+            qemu: false
+            pre-cmd: ""
+          - docker-image: quay.io/pypa/musllinux_1_1_aarch64
+            platform: musllinux_1_1_aarch64
+            qemu: true
+            pre-cmd: ""
+    steps:
+      - name: Set up QEMU
+        if: ${{matrix.qemu == true}}
+        id: qemu
+        uses: docker/setup-qemu-action@v1
+        with:
+          image: tonistiigi/binfmt:latest
+          platforms: all
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Build wheels
+        uses: addnab/docker-run-action@v3 # https://aschmelyun.com/blog/using-docker-run-inside-of-github-actions/
+        with:
+          image: ${{matrix.docker-image}}
+          options: -v ${{ github.workspace }}:/io -e PLAT=${{ matrix.platform }}
+          run: |
+            uname -m
+            cd /io; ls -al
+            ${{ matrix.pre-cmd }} sh build_wheels.sh
+            ls wheelhouse/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: artifacts
+          path: wheelhouse
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all workflow run artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: artifacts
+          path: artifacts
+      - name: Retrieve version
+        run: |
+          echo "::set-output name=TAG_NAME::$(files=(artifacts/*);IFS='-' read -r -a array <<< $files;echo ${array[1]})" # get package version
+        id: version
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: artifacts/*
+          tag_name: ${{ steps.version.outputs.TAG_NAME }}
