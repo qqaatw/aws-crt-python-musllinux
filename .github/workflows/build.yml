@@ -68,6 +68,21 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          draft: true
+          draft: false
           files: artifacts/*
           tag_name: ${{ steps.version.outputs.TAG_NAME }}
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+      - name: Update index.html
+        run: |
+          pip install requests
+          python update_index.py "https://api.github.com/repos/qqaatw/aws-crt-python-musllinux/releases"
+      - name: Commit and push index.html
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Update index.html
+          file_pattern: index.html
