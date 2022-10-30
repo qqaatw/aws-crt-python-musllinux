@@ -12,7 +12,7 @@ jobs:
       latest: ${{ steps.check.outputs.LATEST }}
     steps:
       - name: Setup Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
       - name: Check new versions
         id: check
         run: |
@@ -48,7 +48,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
       - name: Setup Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
       - name: Install cibuildwheel
         run: python -m pip install cibuildwheel==2.11.2
       - name: Build wheels
@@ -90,7 +90,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
       - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: "3.10"
       - name: Update index.html

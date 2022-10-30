@@ -10,9 +10,9 @@ def check():
     latest_release_tag = requests.get(GITHUB_RELEASE_ENDPOINT).json()[0]["tag_name"]
 
     if latest_upstream_release_tag == latest_release_tag:
-        print(f"LATEST=true;UPSTREAM={latest_upstream_release_tag};MAIN={latest_release_tag}")
+        print(f"LATEST=true\nUPSTREAM={latest_upstream_release_tag}\nMAIN={latest_release_tag}")
     else:
-        print(f"LATEST=false;UPSTREAM={latest_upstream_release_tag};MAIN={latest_release_tag}")
+        print(f"LATEST=false\nUPSTREAM={latest_upstream_release_tag}\nMAIN={latest_release_tag}")
 
 def update():
     template ="""<!DOCTYPE html><html><body>{}</body></html>"""
