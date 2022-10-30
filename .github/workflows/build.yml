@@ -2,51 +2,67 @@
 name: Build
 
 on:
-  #push:
-  #  branches:
-  #    - main
   schedule:
-    - cron:  '0 0 * * 0'
+    - cron:  '0 0 * * *'
   workflow_dispatch:
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      latest: ${{ steps.check.outputs.LATEST }}
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v3
+      - name: Check new versions
+        id: check
+        run: |
+          pip install requests
+          echo "$(python check_and_update.py --task check)" >> $GITHUB_OUTPUT
+      - name: Write summary
+        run: |
+          echo "Is the version latest: ${{steps.check.outputs.LATEST}}" >> $GITHUB_STEP_SUMMARY
+          echo "Upstream version: ${{steps.check.outputs.UPSTREAM}}" >> $GITHUB_STEP_SUMMARY
+          echo "Main version: ${{steps.check.outputs.MAIN}}" >> $GITHUB_STEP_SUMMARY
   build:
+    needs: check
+    if: ${{ needs.check.outputs.latest == false || github.event_name == 'workflow_dispatch' }} 
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - docker-image: quay.io/pypa/musllinux_1_1_i686
-            platform: musllinux_1_1_i686
-            qemu: false
-            pre-cmd: linux32
-          - docker-image: quay.io/pypa/musllinux_1_1_x86_64
-            platform: musllinux_1_1_x86_64
-            qemu: false
-            pre-cmd: ""
-          - docker-image: quay.io/pypa/musllinux_1_1_aarch64
-            platform: musllinux_1_1_aarch64
-            qemu: true
-            pre-cmd: ""
+          - qemu: false
+            cibw_archs: auto
+            cibw_build: cp*-musllinux_*
+            cibw_skip: cp36-* pp* *-win_arm64
+          - qemu: true
+            cibw_archs: aarch64
+            cibw_build: cp*-musllinux_*
+            cibw_skip: cp36-* pp* *-win_arm64
     steps:
       - name: Set up QEMU
         if: ${{matrix.qemu == true}}
-        id: qemu
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2
         with:
-          image: tonistiigi/binfmt:latest
           platforms: all
       - name: Checkout repository
         uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v3
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel==2.11.2
       - name: Build wheels
-        uses: addnab/docker-run-action@v3 # https://aschmelyun.com/blog/using-docker-run-inside-of-github-actions/
-        with:
-          image: ${{matrix.docker-image}}
-          options: -v ${{ github.workspace }}:/io -e PLAT=${{ matrix.platform }}
-          run: |
-            uname -m
-            cd /io; ls -al
-            ${{ matrix.pre-cmd }} sh build_wheels.sh
-            ls wheelhouse/
+        run: |
+          uname -m
+          ls -al
+          sh build_wheels.sh
+          ls wheelhouse/
+        env:
+          CIBW_ARCHS: ${{matrix.cibw_archs}}
+          CIBW_BUILD: ${{matrix.cibw_build}}
+          CIBW_SKIP: ${{matrix.cibw_skip}}
+          CIBW_TEST_COMMAND: python -m unittest discover --failfast --verbose
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -63,7 +79,7 @@ jobs:
           path: artifacts
       - name: Retrieve version
         run: |
-          echo "::set-output name=TAG_NAME::$(files=(artifacts/*);IFS='-' read -r -a array <<< $files;echo ${array[1]})" # get package version
+          echo "TAG_NAME=$(files=(artifacts/*);IFS='-' read -r -a array <<< $files;echo ${array[1]})" >> $GITHUB_OUTPUT # get package version
         id: version
       - name: Release
         uses: softprops/action-gh-release@v1
@@ -80,7 +96,7 @@ jobs:
       - name: Update index.html
         run: |
           pip install requests
-          python update_index.py "https://api.github.com/repos/qqaatw/aws-crt-python-musllinux/releases"
+          python check_and_update.py --task update
       - name: Commit and push index.html
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
