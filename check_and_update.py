@@ -18,14 +18,13 @@ def update():
     template ="""<!DOCTYPE html><html><body>{}</body></html>"""
 
     releases = requests.get(GITHUB_RELEASE_ENDPOINT).json()
-    asset_list = []
-
-    for release in releases:
-        for asset in release["assets"]:
-            asset_list.append(f'<a href="{asset["browser_download_url"]}">{asset["name"]}</a>')
+    assets = (
+        f'<a href="{asset["browser_download_url"]}">{asset["name"]}</a>' 
+        for release in releases for asset in release["assets"]
+    )
 
     with open("index.html", "w", encoding="utf8") as f:
-        f.write(template.format("<br>".join(asset_list)))
+        f.write(template.format("<br>".join(assets)))
 
 
 if __name__ == "__main__":
