@@ -17,7 +17,7 @@ def check():
 def update():
     template ="""<!DOCTYPE html><html><body>{}</body></html>"""
 
-    releases = requests.get(GITHUB_RELEASE_ENDPOINT).json()
+    releases = requests.get(GITHUB_RELEASE_ENDPOINT, params={"per_page": 100}).json()
     assets = (
         f'<a href="{asset["browser_download_url"]}">{asset["name"]}</a>' 
         for release in releases for asset in release["assets"]
